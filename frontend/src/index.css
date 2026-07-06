@@ -1,0 +1,82 @@
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  
+  /* GitHub Dark Mode Palette */
+  --bg-app: #070a0e;
+  --bg-sidebar: #010409;
+  --bg-card: #161b22;
+  --bg-card-hover: #21262d;
+  --border-color: #30363d;
+  --border-color-active: #8b949e;
+  
+  /* Text colors */
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+  
+  /* Accents */
+  --primary: #238636; /* GitHub green */
+  --primary-hover: #2ea44f;
+  --primary-glow: rgba(35, 134, 54, 0.15);
+  
+  --success: #3fb950;
+  --success-glow: rgba(63, 185, 80, 0.15);
+  
+  --warning: #d29922;
+  --warning-glow: rgba(210, 153, 34, 0.15);
+  
+  --danger: #f85149;
+  --danger-glow: rgba(248, 81, 73, 0.15);
+  
+  --info: #58a6ff;
+  
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  
+  --border-radius-sm: 6px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 6px;
+  --border-radius-xl: 6px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism replaced with flat containers */
+.glass {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+/* Custom scrollbars matching GitHub dark */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: var(--border-radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8b949e;
+}

@@ -1,74 +1,184 @@
+from rest_framework import viewsets, permissions, status, views
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
-from .models import Sprint, Task
-from .serializers import SprintSerializer, TaskSerializer
+from rest_framework.decorators import action
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from django.contrib.auth.models import User
+from .models import Sprint, Task, TaskComment, Team
+from .serializers import (
+    RegisterSerializer, UserSerializer, SprintSerializer, 
+    TaskSerializer, TaskCommentSerializer, TeamSerializer
+)
+from .permissions import SprintPermission, TaskPermission, IsTeamMember
+from .analytics import (
+    get_burndown, get_workload_distribution, get_velocity,
+    get_bottlenecks, get_scope_creep, get_recommendations
+)
+
+class RegisterView(views.APIView):
+    """
+    Registers a new user and returns JWT tokens.
+    Request body: username, password, email, role ('manager'/'member'), team_name.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "user": UserSerializer(user).data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST'])
-def sprint_list(request):
+class ProfileView(views.APIView):
+    """
+    Retrieves the currently authenticated user's profile information.
+    """
+    permission_classes = [permissions.IsAuthenticated]
 
-    if request.method == 'GET':
-        sprints = Sprint.objects.all()
-        serializer = SprintSerializer(sprints, many=True)
+    def get(self, request, *args, **kwargs):
+        serializer = UserSerializer(request.user)
         return Response(serializer.data)
 
-    serializer = SprintSerializer(data=request.data)
 
-    if serializer.is_valid():
+class TeamViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Provides read-only access to teams.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TeamSerializer
+    queryset = Team.objects.all()
+
+
+class SprintViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Sprints.
+    - Managers can create, update, and delete sprints.
+    - Members have read-only access.
+    - Results are scoped to the user's team.
+    """
+    serializer_class = SprintSerializer
+    permission_classes = [permissions.IsAuthenticated, SprintPermission]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not hasattr(user, 'userprofile') or user.userprofile.team is None:
+            return Sprint.objects.none()
+        return Sprint.objects.filter(team=user.userprofile.team).order_by('start_date')
+
+    def perform_create(self, serializer):
+        user_team = self.request.user.userprofile.team
+        serializer.save(team=user_team)
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated, IsTeamMember])
+    def analytics(self, request, pk=None):
+        """
+        Calculates and returns the full suite of sprint analytics.
+        Includes Burndown, Workload, Velocity, Bottlenecks, Scope Creep, and Recommendations.
+        """
+        sprint = self.get_object()
+        
+        burndown_data = get_burndown(sprint)
+        workload_data = get_workload_distribution(sprint)
+        velocity_data = get_velocity(sprint)
+        bottleneck_data = get_bottlenecks(sprint)
+        scope_creep_data = get_scope_creep(sprint)
+        
+        recommendations = get_recommendations(
+            burndown=burndown_data,
+            workload=workload_data,
+            velocity=velocity_data,
+            bottlenecks=bottleneck_data,
+            scope_creep=scope_creep_data,
+            sprint=sprint
+        )
+
+        return Response({
+            "sprint_id": sprint.id,
+            "sprint_name": sprint.name,
+            "burndown": burndown_data,
+            "workload": workload_data,
+            "velocity": velocity_data,
+            "bottlenecks": bottleneck_data,
+            "scope_creep": scope_creep_data,
+            "recommendations": recommendations
+        })
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Tasks.
+    - Managers have full CRUD rights.
+    - Members can only update status on tasks assigned to them.
+    - Scoped by team.
+    - Filters: ?sprint=<id>, ?assignee=<id>, ?status=<choices>
+    """
+    serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated, TaskPermission]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not hasattr(user, 'userprofile') or user.userprofile.team is None:
+            return Task.objects.none()
+        
+        queryset = Task.objects.filter(sprint__team=user.userprofile.team).order_by('created_at')
+        
+        sprint_id = self.request.query_params.get('sprint')
+        if sprint_id:
+            queryset = queryset.filter(sprint_id=sprint_id)
+            
+        assignee_id = self.request.query_params.get('assignee')
+        if assignee_id:
+            queryset = queryset.filter(assignee_id=assignee_id)
+            
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+            
+        return queryset
+
+    def perform_create(self, serializer):
+        # Ensure that manager only creates task for sprints within their team
+        sprint = serializer.validated_data['sprint']
+        user_team = self.request.user.userprofile.team
+        if sprint.team != user_team:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only create tasks for sprints in your team.")
         serializer.save()
-        return Response(serializer.data)
-
-    return Response(serializer.errors)
 
 
-@api_view(['GET', 'POST'])
-def task_list(request):
+class TaskCommentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Task Comments.
+    - Scoped by team.
+    - Allows adding and viewing comments on team tasks.
+    - Filter by task: ?task=<id>
+    """
+    serializer_class = TaskCommentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsTeamMember]
 
-    if request.method == 'GET':
-        tasks = Task.objects.all()
-        serializer = TaskSerializer(tasks, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        user = self.request.user
+        if not hasattr(user, 'userprofile') or user.userprofile.team is None:
+            return TaskComment.objects.none()
+            
+        queryset = TaskComment.objects.filter(task__sprint__team=user.userprofile.team).order_by('created_at')
+        
+        task_id = self.request.query_params.get('task')
+        if task_id:
+            queryset = queryset.filter(task_id=task_id)
+            
+        return queryset
 
-    serializer = TaskSerializer(data=request.data)
-
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-
-    return Response(serializer.errors)
-@api_view(['PUT'])
-def update_sprint(request, pk):
-    sprint = Sprint.objects.get(id=pk)
-    serializer = SprintSerializer(sprint, data=request.data)
-
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-
-    return Response(serializer.errors)
-
-
-@api_view(['DELETE'])
-def delete_sprint(request, pk):
-    sprint = Sprint.objects.get(id=pk)
-    sprint.delete()
-    return Response({"message": "Sprint deleted successfully"})
-
-
-@api_view(['PUT'])
-def update_task(request, pk):
-    task = Task.objects.get(id=pk)
-    serializer = TaskSerializer(task, data=request.data)
-
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-
-    return Response(serializer.errors)
-
-
-@api_view(['DELETE'])
-def delete_task(request, pk):
-    task = Task.objects.get(id=pk)
-    task.delete()
-    return Response({"message": "Task deleted successfully"})
+    def perform_create(self, serializer):
+        task = serializer.validated_data['task']
+        user_team = self.request.user.userprofile.team
+        if task.sprint.team != user_team:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only comment on tasks within your team.")
+        serializer.save(author=self.request.user)
