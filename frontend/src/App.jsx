@@ -599,18 +599,15 @@ function App() {
       
       {/* Sidebar Navigation */}
       <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="logo-container">
+        <button 
+          className="logo-container" 
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          type="button"
+        >
           <TrendingUp size={28} className="logo-icon" />
           <span className="logo-text">SprintPulse</span>
-          <button 
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
-            className="sidebar-toggle-btn"
-            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            type="button"
-          >
-            {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
-        </div>
+        </button>
 
         <nav>
           <ul className="nav-links">
