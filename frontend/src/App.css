@@ -20,6 +20,8 @@
   padding: 24px;
   z-index: 10;
   flex-shrink: 0;
+  position: relative;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), padding 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .logo-container {
@@ -28,6 +30,67 @@
   gap: 12px;
   margin-bottom: 32px;
   text-decoration: none;
+  position: relative;
+}
+
+/* Sidebar Toggle button and collapsed styles */
+.sidebar-toggle-btn {
+  background: #21262d;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: absolute;
+  right: -10px;
+  top: 4px;
+  z-index: 20;
+  transition: background 0.12s, border-color 0.12s;
+  padding: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: #8b949e;
+}
+
+.sidebar.collapsed {
+  width: 68px;
+  padding: 24px 10px;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-text,
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .logout-btn {
+  display: none;
+}
+
+.sidebar.collapsed .logo-container {
+  justify-content: center;
+  margin-bottom: 32px;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-toggle-btn {
+  right: -10px;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 8px;
+}
+
+.sidebar.collapsed .user-profile-badge {
+  justify-content: center;
+}
+
+.sidebar.collapsed .user-avatar {
+  margin: 0;
 }
 
 .logo-text {
@@ -514,6 +577,7 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

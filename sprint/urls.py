@@ -1,4 +1,5 @@
 from django.urls import path, include
+from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -14,6 +15,9 @@ router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'comments', TaskCommentViewSet, basename='comment')
 
 urlpatterns = [
+    # Root redirect to API Docs
+    path('', RedirectView.as_view(url='api/docs/', permanent=False)),
+
     # Auth endpoints
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

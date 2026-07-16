@@ -6,7 +6,7 @@ import {
 import { 
   TrendingDown, TrendingUp, AlertCircle, CheckCircle, ShieldAlert, Clock, 
   Plus, Trash2, Edit3, LogOut, LayoutDashboard, Kanban, ClipboardList, 
-  BookOpen, Send, Users, Award, FileText, ChevronRight
+  BookOpen, Send, Users, Award, FileText, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import './App.css';
 
@@ -21,6 +21,7 @@ function App() {
   // App navigation
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [authMode, setAuthMode] = useState('login');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Business state
   const [sprints, setSprints] = useState([]);
@@ -597,10 +598,18 @@ function App() {
       <div className="bg-glow-2"></div>
       
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="logo-container">
           <TrendingUp size={28} className="logo-icon" />
           <span className="logo-text">SprintPulse</span>
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
+            className="sidebar-toggle-btn"
+            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            type="button"
+          >
+            {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
         </div>
 
         <nav>
@@ -610,21 +619,21 @@ function App() {
               onClick={() => setCurrentTab('dashboard')}
             >
               <LayoutDashboard size={18} />
-              Sprint Dashboard
+              <span className="nav-text">Sprint Dashboard</span>
             </li>
             <li 
               className={`nav-item ${currentTab === 'board' ? 'active' : ''}`}
               onClick={() => setCurrentTab('board')}
             >
               <Kanban size={18} />
-              Kanban Board
+              <span className="nav-text">Kanban Board</span>
             </li>
             <li 
               className={`nav-item ${currentTab === 'tasks' ? 'active' : ''}`}
               onClick={() => setCurrentTab('tasks')}
             >
               <ClipboardList size={18} />
-              Tasks List
+              <span className="nav-text">Tasks List</span>
             </li>
           </ul>
         </nav>
@@ -637,10 +646,10 @@ function App() {
           style={{ marginTop: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}
         >
           <BookOpen size={18} />
-          Interactive API Docs
+          <span className="nav-text">Interactive API Docs</span>
         </a>
 
-        {user && (
+        {user ? (
           <div className="user-profile-badge">
             <div className="user-avatar">
               {user.username.substring(0, 2)}
@@ -653,6 +662,18 @@ function App() {
               <LogOut size={16} />
             </button>
           </div>
+        ) : (
+          token && (
+            <div className="user-profile-badge">
+              <div className="user-info">
+                <span className="user-name" style={{ color: 'var(--text-secondary)' }}>Offline Mode</span>
+                <span className="user-role-team" style={{ color: 'var(--danger)' }}>Backend Unreachable</span>
+              </div>
+              <button className="logout-btn" onClick={handleLogout} title="Reset Session" style={{ color: 'var(--danger)', marginLeft: 'auto' }}>
+                <LogOut size={16} />
+              </button>
+            </div>
+          )
         )}
       </aside>
 
