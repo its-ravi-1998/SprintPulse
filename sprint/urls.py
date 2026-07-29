@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from .views import (
-    RegisterView, ProfileView, TeamViewSet,
+    RegisterView, GoogleAuthView, ProfileView, TeamViewSet,
     SprintViewSet, TaskViewSet, TaskCommentViewSet
 )
 
@@ -21,8 +21,10 @@ urlpatterns = [
     # Auth endpoints
     path('api/auth/register/', RegisterView.as_view(), name='auth_register'),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/auth/google/', GoogleAuthView.as_view(), name='auth_google'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/profile/', ProfileView.as_view(), name='auth_profile'),
+
 
     # API router endpoints
     path('api/', include(router.urls)),

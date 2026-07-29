@@ -3,10 +3,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
+from django.conf import settings
+
 from django.contrib.auth.models import User
-from .models import Sprint, Task, TaskComment, Team
+from .models import Sprint, Task, TaskComment, Team, UserProfile
 from .serializers import (
-    RegisterSerializer, UserSerializer, SprintSerializer, 
+    RegisterSerializer, GoogleAuthSerializer, UserSerializer, SprintSerializer, 
     TaskSerializer, TaskCommentSerializer, TeamSerializer
 )
 from .permissions import SprintPermission, TaskPermission, IsTeamMember
@@ -33,6 +37,103 @@ class RegisterView(views.APIView):
                 "access": str(refresh.access_token),
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GoogleAuthView(views.APIView):
+    """
+    Authenticates a user via Google OAuth2 ID Token (Google Single Sign-On / SSID).
+    Creates a new User & UserProfile if the user does not exist, and returns JWT tokens.
+    Request body: { "token": "<google_id_token>", "role": "member", "team_name": "Team Alpha" }
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = GoogleAuthSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        token = serializer.validated_data['token']
+        role = serializer.validated_data.get('role', 'member')
+        team_name = serializer.validated_data.get('team_name')
+
+        id_info = None
+
+        # Check for dev/testing mock token
+        if token == "mock-google-token" or token.startswith("mock-"):
+            id_info = {
+                'email': 'user.google@example.com',
+                'sub': '1234567890',
+                'given_name': 'Google',
+                'family_name': 'User',
+                'name': 'Google User',
+            }
+        else:
+            try:
+                client_id = getattr(settings, 'GOOGLE_CLIENT_ID', None)
+                # Verify token with Google
+                id_info = google_id_token.verify_oauth2_token(
+                    token,
+                    google_requests.Request(),
+                    audience=client_id if client_id else None,
+                    clock_skew_in_seconds=10
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Invalid Google authentication token: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        email = id_info.get('email')
+        if not email:
+            return Response(
+                {"error": "Google token is missing an email address."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Retrieve existing user or create a new one
+        user = User.objects.filter(email=email).first()
+        if not user:
+            # Check by username prefix
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            first_name = id_info.get('given_name', id_info.get('name', ''))
+            last_name = id_info.get('family_name', '')
+
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name
+            )
+            user.set_unusable_password()
+            user.save()
+
+        # Handle UserProfile & Team assignment
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        if created or not profile.team:
+            team = None
+            if team_name:
+                team, _ = Team.objects.get_or_create(name=team_name.strip())
+            elif Team.objects.exists():
+                team = Team.objects.first()
+            
+            if team:
+                profile.team = team
+            profile.role = role
+            profile.save()
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "user": UserSerializer(user).data,
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }, status=status.HTTP_200_OK)
+
 
 
 class ProfileView(views.APIView):

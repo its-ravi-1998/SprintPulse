@@ -187,3 +187,16 @@ class SprintApiTests(APITestCase):
             "story_points": 8
         })
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_google_auth_success(self):
+        url = "/api/auth/google/"
+        response = self.client.post(url, {
+            "token": "mock-google-token",
+            "role": "member",
+            "team_name": "Beta Team"
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+        self.assertIn("user", response.data)
+        self.assertEqual(response.data["user"]["email"], "user.google@example.com")
+

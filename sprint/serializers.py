@@ -56,6 +56,13 @@ class RegisterSerializer(serializers.Serializer):
         return user
 
 
+class GoogleAuthSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    role = serializers.ChoiceField(choices=['manager', 'member'], required=False, default='member')
+    team_name = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+
+
+
 class SprintSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sprint

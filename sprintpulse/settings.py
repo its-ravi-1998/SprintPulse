@@ -10,7 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
+import dj_database_url
 from pathlib import Path
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,6 +24,10 @@ SECRET_KEY = 'django-insecure-*f7wqlz2++%nnt*0msevhh)0evg**%m2794xa4)!(h)mnqy)v%
 DEBUG = True
 
 ALLOWED_HOSTS = []
+
+# Google OAuth SSID / SSO configuration
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+
 
 
 # Application definition
@@ -72,12 +79,33 @@ WSGI_APPLICATION = 'sprintpulse.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DB_ENGINE = os.environ.get('DB_ENGINE', 'postgres').lower()
+
+if DB_ENGINE == 'sqlite':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    postgres_host = os.environ.get('POSTGRES_HOST', 'localhost')
+    postgres_port = os.environ.get('POSTGRES_PORT', '5432')
+    postgres_db = os.environ.get('POSTGRES_DB', 'sprintpulse')
+    postgres_user = os.environ.get('POSTGRES_USER', 'postgres')
+    postgres_password = os.environ.get('POSTGRES_PASSWORD', 'postgres')
+    
+    default_db_url = f"postgres://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
+    database_url = os.environ.get('DATABASE_URL', default_db_url)
+
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+
 
 
 # Password validation
