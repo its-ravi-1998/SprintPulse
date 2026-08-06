@@ -197,8 +197,9 @@ function App() {
   const handleGoogleSuccess = async (idToken) => {
     setLoading(true);
     setError(null);
+    const targetUrl = `${API_BASE}/api/auth/google/`;
     try {
-      const res = await fetch(`${API_BASE}/api/auth/google/`, {
+      const res = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -207,15 +208,22 @@ function App() {
           team_name: authInputs.team_name || ''
         })
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Google authentication failed');
+      
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Google authentication failed');
+        }
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        setToken(data.access);
+        setRefreshToken(data.refresh);
+        setUser(data.user);
+      } else {
+        const text = await res.text();
+        throw new Error(`Server returned non-JSON response (${res.status}) from ${targetUrl}: ${text.substring(0, 80)}...`);
       }
-      localStorage.setItem('access_token', data.access);
-      localStorage.setItem('refresh_token', data.refresh);
-      setToken(data.access);
-      setRefreshToken(data.refresh);
-      setUser(data.user);
     } catch (err) {
       setError(err.message || 'Unable to authenticate via Google SSID');
     } finally {
@@ -257,7 +265,8 @@ function App() {
     setLoading(true);
     try {
       if (authMode === 'login') {
-        const res = await fetch(`${API_BASE}/api/auth/login/`, {
+        const targetUrl = `${API_BASE}/api/auth/login/`;
+        const res = await fetch(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -265,14 +274,22 @@ function App() {
             password: authInputs.password
           })
         });
-        if (!res.ok) throw new Error("Invalid username or password");
-        const data = await res.json();
-        localStorage.setItem('access_token', data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-        setToken(data.access);
-        setRefreshToken(data.refresh);
+        
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          if (!res.ok) throw new Error("Invalid username or password");
+          const data = await res.json();
+          localStorage.setItem('access_token', data.access);
+          localStorage.setItem('refresh_token', data.refresh);
+          setToken(data.access);
+          setRefreshToken(data.refresh);
+        } else {
+          const text = await res.text();
+          throw new Error(`Server returned non-JSON response (${res.status}) from ${targetUrl}: ${text.substring(0, 80)}...`);
+        }
       } else {
-        const res = await fetch(`${API_BASE}/api/auth/register/`, {
+        const targetUrl = `${API_BASE}/api/auth/register/`;
+        const res = await fetch(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -283,15 +300,21 @@ function App() {
             team_name: authInputs.team_name
           })
         });
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.username || errData.detail || "Registration failed");
+        
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.username || data.detail || "Registration failed");
+          }
+          localStorage.setItem('access_token', data.access);
+          localStorage.setItem('refresh_token', data.refresh);
+          setToken(data.access);
+          setRefreshToken(data.refresh);
+        } else {
+          const text = await res.text();
+          throw new Error(`Server returned non-JSON response (${res.status}) from ${targetUrl}: ${text.substring(0, 80)}...`);
         }
-        const data = await res.json();
-        localStorage.setItem('access_token', data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-        setToken(data.access);
-        setRefreshToken(data.refresh);
       }
     } catch (err) {
       setError(err.message);
