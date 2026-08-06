@@ -5,15 +5,16 @@ from .models import Team, UserProfile, Sprint, Task, TaskComment
 class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'code']
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
     team_name = serializers.CharField(source='team.name', read_only=True)
+    team_code = serializers.CharField(source='team.code', read_only=True)
     
     class Meta:
         model = UserProfile
-        fields = ['role', 'team', 'team_name']
+        fields = ['role', 'team', 'team_name', 'team_code']
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -30,6 +31,7 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     role = serializers.ChoiceField(choices=['manager', 'member'], default='member')
     team_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    team_code = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
@@ -42,14 +44,22 @@ class RegisterSerializer(serializers.Serializer):
         email = validated_data.get('email', '')
         role = validated_data.get('role', 'member')
         team_name = validated_data.get('team_name', '')
+        team_code = validated_data.get('team_code', '')
 
         # Create user
         user = User.objects.create_user(username=username, email=email, password=password)
         
-        # Resolve team
+        # Resolve team by code if provided, otherwise by name or auto-generate
         team = None
-        if team_name:
+        if team_code and team_code.strip():
+            team = Team.objects.filter(code=team_code.strip().upper()).first()
+            if not team:
+                raise serializers.ValidationError({"team_code": "Invalid Team Code. Please ask your Project Manager for the correct 6-digit code."})
+        elif team_name and team_name.strip():
             team, _ = Team.objects.get_or_create(name=team_name.strip())
+        else:
+            default_name = f"{user.username}'s Team"
+            team, _ = Team.objects.get_or_create(name=default_name)
 
         # Create UserProfile
         UserProfile.objects.create(user=user, role=role, team=team)
@@ -60,6 +70,7 @@ class GoogleAuthSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
     role = serializers.ChoiceField(choices=['manager', 'member'], required=False, default='member')
     team_name = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    team_code = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
 
 
 

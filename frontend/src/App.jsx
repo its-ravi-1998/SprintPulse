@@ -6,7 +6,7 @@ import {
 import { 
   TrendingDown, TrendingUp, AlertCircle, CheckCircle, ShieldAlert, Clock, 
   Plus, Trash2, Edit3, LogOut, LayoutDashboard, Kanban, ClipboardList, 
-  BookOpen, Send, Users, Award, FileText, ChevronRight, ChevronLeft
+  BookOpen, Send, Users, Award, FileText, ChevronRight, ChevronLeft, Copy, Check
 } from 'lucide-react';
 import './App.css';
 
@@ -46,12 +46,21 @@ function App() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   
   // Auth Form Input states
   const [authInputs, setAuthInputs] = useState({
-    username: '', password: '', email: '', role: 'member', team_name: ''
+    username: '', password: '', email: '', role: 'member', team_name: '', team_code: ''
   });
-  const [profileInputs, setProfileInputs] = useState({ role: 'member', team_name: '' });
+  const [profileInputs, setProfileInputs] = useState({ role: 'member', team_name: '', team_code: '' });
+
+  const copyTeamCode = (code) => {
+    if (code) {
+      navigator.clipboard.writeText(code);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -63,10 +72,14 @@ function App() {
         headers: getHeaders(),
         body: JSON.stringify({
           role: profileInputs.role,
-          team_name: profileInputs.team_name
+          team_name: profileInputs.team_name,
+          team_code: profileInputs.team_code
         })
       });
-      if (!res.ok) throw new Error("Failed to update team settings");
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to update team settings");
+      }
       const updatedUser = await res.json();
       setUser(updatedUser);
       setTeamModalOpen(false);
@@ -143,7 +156,8 @@ function App() {
       if (data && data.profile) {
         setProfileInputs({
           role: data.profile.role || 'member',
-          team_name: data.profile.team_name || ''
+          team_name: data.profile.team_name || '',
+          team_code: data.profile.team_code || ''
         });
       }
     } catch (err) {
@@ -238,7 +252,8 @@ function App() {
         body: JSON.stringify({
           token: idToken,
           role: authInputs.role || 'member',
-          team_name: authInputs.team_name || ''
+          team_name: authInputs.team_name || '',
+          team_code: authInputs.team_code || ''
         })
       });
       
@@ -662,26 +677,41 @@ function App() {
                 value={authInputs.role}
                 onChange={e => setAuthInputs({...authInputs, role: e.target.value})}
               >
-                <option value="member">Team Member (Join Existing Team)</option>
-                <option value="manager">Project Manager (Create/Lead Team)</option>
+                <option value="member">Team Member (Join Team via Code)</option>
+                <option value="manager">Project Manager (Create New Team)</option>
               </select>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Team Name</label>
-              <input 
-                type="text" 
-                placeholder={authInputs.role === 'manager' ? "e.g. Phoenix Team (Creates team)" : "e.g. Phoenix Team (Joins team)"}
-                className="form-input" 
-                value={authInputs.team_name}
-                onChange={e => setAuthInputs({...authInputs, team_name: e.target.value})}
-              />
-              <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                {authInputs.role === 'manager' 
-                  ? 'Project Manager: Enter a name to create a new team.' 
-                  : 'Team Member: Enter the exact team name provided by your Manager.'}
-              </small>
-            </div>
+            {authInputs.role === 'manager' ? (
+              <div className="form-group">
+                <label className="form-label">Team Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Phoenix Team"
+                  className="form-input" 
+                  value={authInputs.team_name}
+                  onChange={e => setAuthInputs({...authInputs, team_name: e.target.value})}
+                />
+                <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Project Manager: Enter a name to create a new team and generate a 6-digit code.
+                </small>
+              </div>
+            ) : (
+              <div className="form-group">
+                <label className="form-label">6-Digit Team Code</label>
+                <input 
+                  type="text" 
+                  maxLength={6}
+                  placeholder="e.g. 3SESY7"
+                  className="form-input" 
+                  value={authInputs.team_code}
+                  onChange={e => setAuthInputs({...authInputs, team_code: e.target.value.toUpperCase()})}
+                />
+                <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  Team Member: Enter the 6-digit randomized team code provided by your Manager.
+                </small>
+              </div>
+            )}
 
             <button type="submit" className="btn-primary auth-btn" disabled={loading}>
               {loading ? <div className="spinner" /> : (authMode === 'login' ? 'Sign In' : 'Sign Up')}
@@ -776,7 +806,21 @@ function App() {
             </div>
             <div className="user-info">
               <span className="user-name">{user.first_name ? `${user.first_name} ${user.last_name}` : user.username}</span>
-              <span className="user-role-team">{user.profile?.role === 'manager' ? 'Project Manager' : 'Team Member'} | {user.profile?.team_name || 'No Team'}</span>
+              <span className="user-role-team">
+                {user.profile?.role === 'manager' ? 'Project Manager' : 'Team Member'} | {user.profile?.team_name || 'No Team'}
+              </span>
+              {user.profile?.team_code && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontSize: '11px', color: 'var(--accent-color)' }}>
+                  <span>Code: <strong>{user.profile.team_code}</strong></span>
+                  <button 
+                    onClick={() => copyTeamCode(user.profile.team_code)} 
+                    style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}
+                    title="Copy 6-digit Team Code"
+                  >
+                    {copiedCode ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                  </button>
+                </div>
+              )}
             </div>
             <button className="logout-btn" onClick={() => setTeamModalOpen(true)} title="Manage Team / Role" style={{ marginRight: '6px' }}>
               <Users size={16} />
@@ -1508,9 +1552,26 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content glass">
             <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>Manage Team & Role</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Create a new team as a Project Manager or join an existing team as a Team Member.
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Create a new team as a Project Manager or join an existing team using a 6-digit Team Code.
             </p>
+
+            {user?.profile?.team_code && (
+              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Current Team Code</div>
+                  <div style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '2px', color: 'var(--accent-color)' }}>{user.profile.team_code}</div>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={() => copyTeamCode(user.profile.team_code)}
+                  style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {copiedCode ? <><Check size={14} color="#10B981" /> Copied!</> : <><Copy size={14} /> Copy Code</>}
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleUpdateProfile}>
               <div className="form-group">
@@ -1520,27 +1581,43 @@ function App() {
                   value={profileInputs.role}
                   onChange={e => setProfileInputs({...profileInputs, role: e.target.value})}
                 >
-                  <option value="member">Team Member (Joins Team)</option>
+                  <option value="member">Team Member (Joins Team by Code)</option>
                   <option value="manager">Project Manager (Creates & Leads Team)</option>
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Team Name</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  required
-                  placeholder="e.g. Phoenix Team"
-                  value={profileInputs.team_name}
-                  onChange={e => setProfileInputs({...profileInputs, team_name: e.target.value})}
-                />
-                <small style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {profileInputs.role === 'manager' 
-                    ? 'Entering a new team name creates it. Share this team name with your members so they can join!' 
-                    : 'Enter the exact Team Name provided by your Project Manager to join their workspace.'}
-                </small>
-              </div>
+              {profileInputs.role === 'manager' ? (
+                <div className="form-group">
+                  <label className="form-label">Team Name</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    required
+                    placeholder="e.g. Phoenix Team"
+                    value={profileInputs.team_name}
+                    onChange={e => setProfileInputs({...profileInputs, team_name: e.target.value})}
+                  />
+                  <small style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Project Managers: Enter a name to create a new team and generate a 6-digit code for your members.
+                  </small>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">6-Digit Team Code</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    required
+                    maxLength={6}
+                    placeholder="e.g. 3SESY7"
+                    value={profileInputs.team_code}
+                    onChange={e => setProfileInputs({...profileInputs, team_code: e.target.value.toUpperCase()})}
+                  />
+                  <small style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Team Members: Enter the 6-digit team code provided by your Project Manager to join their team.
+                  </small>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn-secondary" onClick={() => setTeamModalOpen(false)}>Cancel</button>

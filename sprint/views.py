@@ -62,6 +62,7 @@ class GoogleAuthView(views.APIView):
             token = serializer.validated_data['token']
             role = serializer.validated_data.get('role', 'member')
             team_name = serializer.validated_data.get('team_name')
+            team_code = serializer.validated_data.get('team_code')
 
             id_info = None
 
@@ -125,11 +126,15 @@ class GoogleAuthView(views.APIView):
             if role in ['manager', 'member']:
                 profile.role = role
 
-            if team_name and team_name.strip():
+            if team_code and team_code.strip():
+                team = Team.objects.filter(code=team_code.strip().upper()).first()
+                if not team:
+                    return Response({"error": "Invalid Team Code. Please ask your Project Manager for the correct 6-digit code."}, status=status.HTTP_400_BAD_REQUEST)
+                profile.team = team
+            elif team_name and team_name.strip():
                 team, _ = Team.objects.get_or_create(name=team_name.strip())
                 profile.team = team
             elif created or not profile.team or (profile.team and profile.team.name == "Phoenix Team"):
-                # Automatically assign user to their own dedicated team instead of the shared seed dataset
                 display_name = user.first_name or user.username
                 default_team_name = f"{display_name}'s Team"
                 team, _ = Team.objects.get_or_create(name=default_team_name)
@@ -165,11 +170,17 @@ class ProfileView(views.APIView):
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         role = request.data.get('role')
         team_name = request.data.get('team_name')
+        team_code = request.data.get('team_code')
 
         if role in ['manager', 'member']:
             profile.role = role
 
-        if team_name and team_name.strip():
+        if team_code and team_code.strip():
+            team = Team.objects.filter(code=team_code.strip().upper()).first()
+            if not team:
+                return Response({"error": "Invalid Team Code. Please verify the 6-digit code with your Project Manager."}, status=status.HTTP_400_BAD_REQUEST)
+            profile.team = team
+        elif team_name and team_name.strip():
             team, _ = Team.objects.get_or_create(name=team_name.strip())
             profile.team = team
 

@@ -3,11 +3,26 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 
+import secrets
+import string
+
 class Team(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=10, unique=True, blank=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.code})"
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            alphabet = string.ascii_uppercase + string.digits
+            alphabet = alphabet.replace('0', '').replace('O', '').replace('1', '').replace('I', '')
+            while True:
+                code = ''.join(secrets.choice(alphabet) for _ in range(6))
+                if not Team.objects.filter(code=code).exists():
+                    self.code = code
+                    break
+        super().save(*args, **kwargs)
 
 
 class UserProfile(models.Model):
