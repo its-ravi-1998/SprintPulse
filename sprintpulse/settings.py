@@ -99,13 +99,27 @@ else:
     default_db_url = f"postgres://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
     database_url = os.environ.get('DATABASE_URL', default_db_url)
 
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=database_url,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
-    }
+    is_vercel = 'VERCEL' in os.environ
+    conn_max_age = int(os.environ.get('CONN_MAX_AGE', 0 if is_vercel else 600))
+    ssl_require = is_vercel or 'sslmode=require' in database_url or os.environ.get('DATABASE_SSL', 'False').lower() == 'true'
+
+    try:
+        DATABASES = {
+            'default': dj_database_url.config(
+                default=database_url,
+                conn_max_age=conn_max_age,
+                conn_health_checks=not is_vercel,
+                ssl_require=ssl_require
+            )
+        }
+    except Exception as e:
+        print(f"Error parsing DATABASE_URL: {e}")
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 
 
 
