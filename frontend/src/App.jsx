@@ -670,47 +670,51 @@ function App() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Role</label>
-              <select 
-                className="select-input"
-                value={authInputs.role}
-                onChange={e => setAuthInputs({...authInputs, role: e.target.value})}
-              >
-                <option value="member">Team Member (Join Team via Code)</option>
-                <option value="manager">Project Manager (Create New Team)</option>
-              </select>
-            </div>
+            {authMode === 'register' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Role</label>
+                  <select 
+                    className="select-input"
+                    value={authInputs.role}
+                    onChange={e => setAuthInputs({...authInputs, role: e.target.value})}
+                  >
+                    <option value="member">Team Member (Join Team via Code)</option>
+                    <option value="manager">Project Manager (Create New Team)</option>
+                  </select>
+                </div>
 
-            {authInputs.role === 'manager' ? (
-              <div className="form-group">
-                <label className="form-label">Team Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Phoenix Team"
-                  className="form-input" 
-                  value={authInputs.team_name}
-                  onChange={e => setAuthInputs({...authInputs, team_name: e.target.value})}
-                />
-                <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Project Manager: Enter a name to create a new team and generate a 6-digit code.
-                </small>
-              </div>
-            ) : (
-              <div className="form-group">
-                <label className="form-label">6-Digit Team Code</label>
-                <input 
-                  type="text" 
-                  maxLength={6}
-                  placeholder="e.g. 3SESY7"
-                  className="form-input" 
-                  value={authInputs.team_code}
-                  onChange={e => setAuthInputs({...authInputs, team_code: e.target.value.toUpperCase()})}
-                />
-                <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Team Member: Enter the 6-digit randomized team code provided by your Manager.
-                </small>
-              </div>
+                {authInputs.role === 'manager' ? (
+                  <div className="form-group">
+                    <label className="form-label">Team Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Phoenix Team"
+                      className="form-input" 
+                      value={authInputs.team_name}
+                      onChange={e => setAuthInputs({...authInputs, team_name: e.target.value})}
+                    />
+                    <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      Project Manager: Enter a name to create a new team and generate a 6-digit code.
+                    </small>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label className="form-label">6-Digit Team Code</label>
+                    <input 
+                      type="text" 
+                      maxLength={6}
+                      placeholder="e.g. 3SESY7"
+                      className="form-input" 
+                      value={authInputs.team_code}
+                      onChange={e => setAuthInputs({...authInputs, team_code: e.target.value.toUpperCase()})}
+                    />
+                    <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      Team Member: Enter the 6-digit randomized team code provided by your Manager.
+                    </small>
+                  </div>
+                )}
+              </>
             )}
 
             <button type="submit" className="btn-primary auth-btn" disabled={loading}>
