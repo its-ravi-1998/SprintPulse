@@ -128,9 +128,10 @@ class GoogleAuthView(views.APIView):
             if team_name and team_name.strip():
                 team, _ = Team.objects.get_or_create(name=team_name.strip())
                 profile.team = team
-            elif created or not profile.team:
-                # Create a team dedicated to this user if none specified
-                default_team_name = f"{user.username}'s Team"
+            elif created or not profile.team or (profile.team and profile.team.name == "Phoenix Team"):
+                # Automatically assign user to their own dedicated team instead of the shared seed dataset
+                display_name = user.first_name or user.username
+                default_team_name = f"{display_name}'s Team"
                 team, _ = Team.objects.get_or_create(name=default_team_name)
                 profile.team = team
 
