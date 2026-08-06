@@ -122,17 +122,19 @@ class GoogleAuthView(views.APIView):
 
             # Handle UserProfile & Team assignment
             profile, created = UserProfile.objects.get_or_create(user=user)
-            if created or not profile.team:
-                team = None
-                if team_name:
-                    team, _ = Team.objects.get_or_create(name=team_name.strip())
-                elif Team.objects.exists():
-                    team = Team.objects.first()
-                
-                if team:
-                    profile.team = team
+            if role in ['manager', 'member']:
                 profile.role = role
-                profile.save()
+
+            if team_name and team_name.strip():
+                team, _ = Team.objects.get_or_create(name=team_name.strip())
+                profile.team = team
+            elif created or not profile.team:
+                # Create a team dedicated to this user if none specified
+                default_team_name = f"{user.username}'s Team"
+                team, _ = Team.objects.get_or_create(name=default_team_name)
+                profile.team = team
+
+            profile.save()
 
             refresh = RefreshToken.for_user(user)
             return Response({
@@ -150,13 +152,28 @@ class GoogleAuthView(views.APIView):
 
 class ProfileView(views.APIView):
     """
-    Retrieves the currently authenticated user's profile information.
+    Retrieves and updates the currently authenticated user's profile information (role, team).
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
+    def patch(self, request, *args, **kwargs):
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        role = request.data.get('role')
+        team_name = request.data.get('team_name')
+
+        if role in ['manager', 'member']:
+            profile.role = role
+
+        if team_name and team_name.strip():
+            team, _ = Team.objects.get_or_create(name=team_name.strip())
+            profile.team = team
+
+        profile.save()
+        return Response(UserSerializer(request.user).data)
 
 
 class TeamViewSet(viewsets.ReadOnlyModelViewSet):

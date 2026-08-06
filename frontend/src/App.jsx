@@ -45,11 +45,38 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
   
   // Auth Form Input states
   const [authInputs, setAuthInputs] = useState({
     username: '', password: '', email: '', role: 'member', team_name: ''
   });
+  const [profileInputs, setProfileInputs] = useState({ role: 'member', team_name: '' });
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile/`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          role: profileInputs.role,
+          team_name: profileInputs.team_name
+        })
+      });
+      if (!res.ok) throw new Error("Failed to update team settings");
+      const updatedUser = await res.json();
+      setUser(updatedUser);
+      setTeamModalOpen(false);
+      fetchSprints();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Sprint Form Input states
   const [sprintInputs, setSprintInputs] = useState({
@@ -113,6 +140,12 @@ function App() {
       if (!res.ok) throw new Error("Failed to load user profile");
       const data = await res.json();
       setUser(data);
+      if (data && data.profile) {
+        setProfileInputs({
+          role: data.profile.role || 'member',
+          team_name: data.profile.team_name || ''
+        });
+      }
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -622,33 +655,33 @@ function App() {
               />
             </div>
 
-            {authMode === 'register' && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">Role</label>
-                  <select 
-                    className="select-input"
-                    value={authInputs.role}
-                    onChange={e => setAuthInputs({...authInputs, role: e.target.value})}
-                  >
-                    <option value="member">Team Member</option>
-                    <option value="manager">Project Manager</option>
-                  </select>
-                </div>
+            <div className="form-group">
+              <label className="form-label">Role</label>
+              <select 
+                className="select-input"
+                value={authInputs.role}
+                onChange={e => setAuthInputs({...authInputs, role: e.target.value})}
+              >
+                <option value="member">Team Member (Join Existing Team)</option>
+                <option value="manager">Project Manager (Create/Lead Team)</option>
+              </select>
+            </div>
 
-                <div className="form-group">
-                  <label className="form-label">Team Name</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Phoenix Team"
-                    className="form-input" 
-                    required 
-                    value={authInputs.team_name}
-                    onChange={e => setAuthInputs({...authInputs, team_name: e.target.value})}
-                  />
-                </div>
-              </>
-            )}
+            <div className="form-group">
+              <label className="form-label">Team Name</label>
+              <input 
+                type="text" 
+                placeholder={authInputs.role === 'manager' ? "e.g. Phoenix Team (Creates team)" : "e.g. Phoenix Team (Joins team)"}
+                className="form-input" 
+                value={authInputs.team_name}
+                onChange={e => setAuthInputs({...authInputs, team_name: e.target.value})}
+              />
+              <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                {authInputs.role === 'manager' 
+                  ? 'Project Manager: Enter a name to create a new team.' 
+                  : 'Team Member: Enter the exact team name provided by your Manager.'}
+              </small>
+            </div>
 
             <button type="submit" className="btn-primary auth-btn" disabled={loading}>
               {loading ? <div className="spinner" /> : (authMode === 'login' ? 'Sign In' : 'Sign Up')}
@@ -739,12 +772,15 @@ function App() {
         {user ? (
           <div className="user-profile-badge">
             <div className="user-avatar">
-              {user.username.substring(0, 2)}
+              {user.username.substring(0, 2).toUpperCase()}
             </div>
             <div className="user-info">
               <span className="user-name">{user.first_name ? `${user.first_name} ${user.last_name}` : user.username}</span>
-              <span className="user-role-team">{user.profile.role} | {user.profile.team_name}</span>
+              <span className="user-role-team">{user.profile?.role === 'manager' ? 'Project Manager' : 'Team Member'} | {user.profile?.team_name || 'No Team'}</span>
             </div>
+            <button className="logout-btn" onClick={() => setTeamModalOpen(true)} title="Manage Team / Role" style={{ marginRight: '6px' }}>
+              <Users size={16} />
+            </button>
             <button className="logout-btn" onClick={handleLogout} title="Sign Out">
               <LogOut size={16} />
             </button>
@@ -1463,6 +1499,56 @@ function App() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team Management & Role Settings Modal */}
+      {teamModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content glass">
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>Manage Team & Role</h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Create a new team as a Project Manager or join an existing team as a Team Member.
+            </p>
+
+            <form onSubmit={handleUpdateProfile}>
+              <div className="form-group">
+                <label className="form-label">Role</label>
+                <select 
+                  className="select-input"
+                  value={profileInputs.role}
+                  onChange={e => setProfileInputs({...profileInputs, role: e.target.value})}
+                >
+                  <option value="member">Team Member (Joins Team)</option>
+                  <option value="manager">Project Manager (Creates & Leads Team)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Team Name</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  required
+                  placeholder="e.g. Phoenix Team"
+                  value={profileInputs.team_name}
+                  onChange={e => setProfileInputs({...profileInputs, team_name: e.target.value})}
+                />
+                <small style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {profileInputs.role === 'manager' 
+                    ? 'Entering a new team name creates it. Share this team name with your members so they can join!' 
+                    : 'Enter the exact Team Name provided by your Project Manager to join their workspace.'}
+                </small>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn-secondary" onClick={() => setTeamModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? <div className="spinner" /> : 'Save Team Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
