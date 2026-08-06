@@ -16,15 +16,15 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/admin/(.*)",
-      "dest": "api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/static/(.*)",
-      "dest": "api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "handle": "filesystem"
