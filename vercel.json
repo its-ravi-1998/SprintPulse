@@ -9,22 +9,22 @@
       }
     },
     {
-      "src": "sprintpulse/wsgi.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "sprintpulse/wsgi.py"
+      "dest": "api/index.py"
     },
     {
       "src": "/admin/(.*)",
-      "dest": "sprintpulse/wsgi.py"
+      "dest": "api/index.py"
     },
     {
       "src": "/static/(.*)",
-      "dest": "sprintpulse/wsgi.py"
+      "dest": "api/index.py"
     },
     {
       "handle": "filesystem"
