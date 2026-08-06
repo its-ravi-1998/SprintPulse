@@ -637,8 +637,10 @@ function App() {
 
           <form onSubmit={handleAuthSubmit}>
             <div className="form-group">
-              <label className="form-label">Username</label>
+              <label htmlFor="auth-username" className="form-label">Username</label>
               <input 
+                id="auth-username"
+                name="username"
                 type="text" 
                 className="form-input" 
                 required 
@@ -649,8 +651,10 @@ function App() {
 
             {authMode === 'register' && (
               <div className="form-group">
-                <label className="form-label">Email Address</label>
+                <label htmlFor="auth-email" className="form-label">Email Address</label>
                 <input 
+                  id="auth-email"
+                  name="email"
                   type="email" 
                   className="form-input" 
                   value={authInputs.email}
@@ -660,8 +664,10 @@ function App() {
             )}
 
             <div className="form-group">
-              <label className="form-label">Password</label>
+              <label htmlFor="auth-password" className="form-label">Password</label>
               <input 
+                id="auth-password"
+                name="password"
                 type="password" 
                 className="form-input" 
                 required 
@@ -673,8 +679,10 @@ function App() {
             {authMode === 'register' && (
               <>
                 <div className="form-group">
-                  <label className="form-label">Role</label>
+                  <label htmlFor="auth-role" className="form-label">Role</label>
                   <select 
+                    id="auth-role"
+                    name="role"
                     className="select-input"
                     value={authInputs.role}
                     onChange={e => setAuthInputs({...authInputs, role: e.target.value})}
@@ -686,8 +694,10 @@ function App() {
 
                 {authInputs.role === 'manager' ? (
                   <div className="form-group">
-                    <label className="form-label">Team Name</label>
+                    <label htmlFor="auth-team-name" className="form-label">Team Name</label>
                     <input 
+                      id="auth-team-name"
+                      name="team_name"
                       type="text" 
                       placeholder="e.g. Phoenix Team"
                       className="form-input" 
@@ -700,8 +710,10 @@ function App() {
                   </div>
                 ) : (
                   <div className="form-group">
-                    <label className="form-label">6-Digit Team Code</label>
+                    <label htmlFor="auth-team-code" className="form-label">6-Digit Team Code</label>
                     <input 
+                      id="auth-team-code"
+                      name="team_code"
                       type="text" 
                       maxLength={6}
                       placeholder="e.g. 3SESY7"
